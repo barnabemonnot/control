@@ -19,16 +19,24 @@ def random_barabasi():
     G = zen.generating.barabasi_albert(100, 10, directed=True)
     for eidx in G.edges_iter_():
         (src, tgt) = G.endpoints_(eidx)
-        #G.set_weight_(eidx, random.randint(1,100)*(G.degree_(src)+G.degree_(tgt)))
-        G.set_weight_(eidx, random.randint(1,100))
+        # Increasing weights
+        G.set_weight_(eidx, random.randint(1,100)*(G.degree_(src)+G.degree_(tgt)))
+        # Decreasing weights
+        # G.set_weight_(eidx, random.randint(1,100)*(G.degree_(src)+G.degree_(tgt)))
+        # Random weights
+        # G.set_weight_(eidx, random.randint(1,100))
     return G
     
 def random_erdos():
     G = zen.generating.erdos_renyi(100, 0.02, directed=True)
     for eidx in G.edges_iter_():
         (src, tgt) = G.endpoints_(eidx)
+        # Increasing weights
+        # G.set_weight_(eidx, random.randint(1,100)*(G.degree_(src)+G.degree_(tgt)))
+        # Decreasing weights
         G.set_weight_(eidx, random.randint(1,100)/(G.degree_(src)+G.degree_(tgt)))
-        #G.set_weight_(eidx, random.randint(1,100))
+        # Random weights
+        # G.set_weight_(eidx, random.randint(1,100))
     return G
 
 def filename(string):
@@ -96,29 +104,6 @@ def avg_weights(G):
     	if total_number[k] > 0:
     		total_avg[k] = total_weight[k] / total_number[k]       
 
-    # num = np.multiply(weight_in, number_in)
-#     num_in = np.sum(num, axis=1)
-#     den_in = np.sum(total_number_in_out, axis=1)
-#     num_out = np.sum(num, axis=0)
-#     den_out = np.sum(total_number_in_out, axis=0)
-#     for k in range(0, maxin):
-#         if den_in[k] > 0:
-#             total_avg_in[k] = num_in[k]/den_in[k]
-#     for k in range(0, maxout):
-#         if den_out[k] > 0:
-#             total_avg_out[k] = num_out[k]/den_out[k]
-    
-	#source_out = avg_in[:,0]
-	#df = pd.DataFrame({ 'idx': pd.Series(range(0, maxin)), 'source_out': pd.Series(source_out) })
-	#p = gg.ggplot(gg.aes(x='idx', y='source_out'), data=df) + gg.geom_line()
-	#print p
-#     fig = plt.figure()
-#     plt.imshow(avg_in/np.max(avg_in), cmap='Blues', interpolation='nearest', aspect='auto')
-#     plt.show()
-
-    # fig = plt.figure()
-    # plt.bar(range(0, total_max), total_avg)
-    # plt.show()
     return (avg_in, avg_out, avg, total_avg_in, total_avg_out, total_avg)
 
 def get_controlled_nodes(G):
@@ -182,6 +167,8 @@ def find_one_max_weight(G, w):
 	return chosen_one
 
 def avg_reducer(H, step, runs=100, rand=False, asc=True, filename=""):
+    # Runs reducer <runs> times and averages the results
+    # to erase randomness in the choice of links
 	iter_number = H.size()/step + 1
 	avg_controls = np.zeros((iter_number, 4))
 	for i in range(0, runs):
@@ -193,6 +180,10 @@ def avg_reducer(H, step, runs=100, rand=False, asc=True, filename=""):
 	return avg_controls
 
 def reducer(H, step, rand=False, asc=True):
+    # Removes edges <step> at a time and keeps track of the evolution of control profile
+    # rand=False -> weight cuts
+    # rand=True -> random cuts
+    # asc=True -> Lighter edges are cut first
 	total_running_time = time.time()
 	G = H.copy()
 	w = [w for u,v,w in G.edges_iter(weight=True)]
@@ -201,8 +192,8 @@ def reducer(H, step, rand=False, asc=True):
 	diff_controls = np.zeros(iter_number-1)
 	weight_cuts = np.zeros(iter_number-1)
 	controlled_nodes = np.ones((len(G), iter_number))
-	remove_disconnected_nodes = False
-	node_removed = np.zeros(iter_number-1)
+	remove_disconnected_nodes = False # remove disconnected nodes
+	node_removed = np.zeros(iter_number-1) 
 	initial_size = len(G)
 
 	for i in range(0, iter_number):
@@ -255,121 +246,12 @@ def reducer(H, step, rand=False, asc=True):
 		if i > 0:
 			diff_controls[i-1] = m-controls[i-1][0]
 	print 'Ran in %f seconds' % (time.time()-total_running_time)
+    # controls holds the control profiles at each slice
+    # diff_controls holds the added number of controls between each slice
+    # weight_cuts holds the max weight cut during each slice
+    # node_removed has number of nodes removed until slice
+    # controlled_nodes gives the indices of controlled nodes at each slice
 	return controls, diff_controls, weight_cuts, node_removed, controlled_nodes
-
-def gg_print_control(controls):
-	N = len(controls[:,0])
-	ind = np.arange(N)
-	width = 1
-	df = pd.DataFrame({ "ind": ind, "src": pd.Series(controls[:,1]), "ext": pd.Series(controls[:,2]), "int": pd.Series(controls[:,3])})
-	p = gg.ggplot(gg.aes(x='ind', y='src'), data=df) + gg.geom_line()
-	print p
-
-def print_control_graphs(controls, rcontrols, filename):
-	N = len(controls[:,0])
-	ind = np.arange(N)
-	width = 1
-
-	fig = plt.figure()
-	plt.subplot(2, 2, 1)
-	p1 = plt.bar(ind, controls[:,1], width, color='y', edgecolor="none", linewidth=0)
-	p2 = plt.bar(ind, controls[:,2], width, color='b', bottom=controls[:,1], edgecolor="none", linewidth=0)
-	p3 = plt.bar(ind, controls[:,3], width, color='k', bottom=controls[:,1]+controls[:,2], edgecolor="none", linewidth=0)
-	plt.title('Weight cuts')
-	plt.xlabel('slices')
-	plt.ylabel('fraction of controls')
-	plt.legend( (p1[0], p2[0], p3[0]), ('Source controls', 'External dilation', 'Internal dilation'), bbox_to_anchor=(0., 1.08, 1., .102), loc=3, ncol=1, borderaxespad=0. )
-	# Control profiles on random cuts
-	plt.subplot(2, 2, 2)
-	plt.bar(ind, rcontrols[:,1], width, color='y', edgecolor="none", linewidth=0)
-	plt.bar(ind, rcontrols[:,2], width, color='b', bottom=rcontrols[:,1], edgecolor="none", linewidth=0)
-	plt.bar(ind, rcontrols[:,3], width, color='k', bottom=rcontrols[:,1]+rcontrols[:,2], edgecolor="none", linewidth=0)
-	plt.title('Random cuts')
-	plt.xlabel('slices')
-	plt.ylabel('fraction of controls')
-	# Absolute number of controls 
-	plt.subplot(2, 2, 3)
-	plt.bar(ind, controls[:,0]*controls[:,1], width, color='y', edgecolor="none", linewidth=0)
-	plt.bar(ind, controls[:,0]*controls[:,2], width, color='b', bottom=controls[:,0]*controls[:,1], edgecolor="none", linewidth=0)
-	plt.bar(ind, controls[:,0]*controls[:,3], width, color='k', bottom=controls[:,0]*controls[:,1]+controls[:,0]*controls[:,2], edgecolor="none", linewidth=0)
-	plt.title('Weight cuts')
-	plt.xlabel('slices')
-	plt.ylabel('Number of controls')
-	plt.subplot(2, 2, 4)
-	plt.bar(ind, rcontrols[:,0]*rcontrols[:,1], width, color='y', edgecolor="none", linewidth=0)
-	plt.bar(ind, rcontrols[:,0]*rcontrols[:,2], width, color='b', bottom=rcontrols[:,0]*rcontrols[:,1], edgecolor="none", linewidth=0)
-	plt.bar(ind, rcontrols[:,0]*rcontrols[:,3], width, color='k', bottom=rcontrols[:,0]*rcontrols[:,1]+rcontrols[:,0]*rcontrols[:,2], edgecolor="none", linewidth=0)
-	plt.title('Random cuts')
-	plt.xlabel('slices')
-	plt.ylabel('Number of controls')
-	fig.savefig('graphs/'+filename+'-controls.png')
-	plt.show()
-
-def print_graphs(controls, rcontrols, diff_controls, weight_cuts, node_removed, rnode_removed, filename):
-	N = len(controls[:,0])
-	ind = np.arange(N)
-	width = 1
-	# Number of controls, weight cuts vs random cuts
-	fig = plt.figure()
-	plt.subplot(3, 1, 1)
-	plt.title("Minimum number of controls")
-	plt.plot(range(0,len(controls[:,0])), controls[:,0], 'b-', label="Weight cuts")
-	plt.plot(range(0,len(controls[:,0])), rcontrols[:,0], 'g-', label="Random cuts")
-	plt.ylabel('controls')
-	plt.legend(loc=2)
-	# Weight of the heaviest edge in the cut
-	plt.subplot(3, 1, 2)
-	plt.title("Weight of the heaviest edge in the cut")
-	plt.plot(range(1,len(weight_cuts)+1), weight_cuts, 'b-', label="Weight of edge cut")
-	plt.ylabel('weight')
-	plt.legend(loc=2)
-	# Differential of controls between each slice
-	plt.subplot(3, 1, 3)
-	plt.title("Differential of controls between each slice")
-	plt.plot(range(1,len(diff_controls)+1), diff_controls, 'b-')
-	plt.axis([0, len(diff_controls)+1, -0.1, max(diff_controls)+0.5])
-	plt.xlabel('slices')
-	fig.savefig('graphs/'+filename+'-cuts.png')
-	plt.show()
-
-	# Control profiles on weight cuts
-	fig = plt.figure()
-	plt.subplot(2, 2, 1)
-	p1 = plt.bar(ind, controls[:,1], width, color='y', edgecolor="none", linewidth=0)
-	p2 = plt.bar(ind, controls[:,2], width, color='b', bottom=controls[:,1], edgecolor="none", linewidth=0)
-	p3 = plt.bar(ind, controls[:,3], width, color='k', bottom=controls[:,1]+controls[:,2], edgecolor="none", linewidth=0)
-	plt.title('Weight cuts')
-	plt.xlabel('slices')
-	plt.ylabel('fraction of controls')
-	plt.legend( (p1[0], p2[0], p3[0]), ('Source controls', 'External dilation', 'Internal dilation'), bbox_to_anchor=(0., 1.08, 1., .102), loc=3, ncol=1, borderaxespad=0. )
-	# Control profiles on random cuts
-	plt.subplot(2, 2, 2)
-	plt.bar(ind, rcontrols[:,1], width, color='y', edgecolor="none", linewidth=0)
-	plt.bar(ind, rcontrols[:,2], width, color='b', bottom=rcontrols[:,1], edgecolor="none", linewidth=0)
-	plt.bar(ind, rcontrols[:,3], width, color='k', bottom=rcontrols[:,1]+rcontrols[:,2], edgecolor="none", linewidth=0)
-	plt.title('Random cuts')
-	plt.xlabel('slices')
-	plt.ylabel('fraction of controls')
-	# Absolute number of controls 
-	plt.subplot(2, 2, 3)
-	plt.bar(ind, controls[:,0]*controls[:,1], width, color='y', edgecolor="none", linewidth=0)
-	plt.bar(ind, controls[:,0]*controls[:,2], width, color='b', bottom=controls[:,0]*controls[:,1], edgecolor="none", linewidth=0)
-	plt.bar(ind, controls[:,0]*controls[:,3], width, color='k', bottom=controls[:,0]*controls[:,1]+controls[:,0]*controls[:,2], edgecolor="none", linewidth=0)
-	plt.title('Weight cuts')
-	plt.xlabel('slices')
-	plt.ylabel('Number of controls')
-	plt.subplot(2, 2, 4)
-	plt.bar(ind, rcontrols[:,0]*rcontrols[:,1], width, color='y', edgecolor="none", linewidth=0)
-	plt.bar(ind, rcontrols[:,0]*rcontrols[:,2], width, color='b', bottom=rcontrols[:,0]*rcontrols[:,1], edgecolor="none", linewidth=0)
-	plt.bar(ind, rcontrols[:,0]*rcontrols[:,3], width, color='k', bottom=rcontrols[:,0]*rcontrols[:,1]+rcontrols[:,0]*rcontrols[:,2], edgecolor="none", linewidth=0)
-	plt.title('Random cuts')
-	plt.xlabel('slices')
-	plt.ylabel('Number of controls')
-	fig.savefig('graphs/'+filename+'-controls.png')
-	plt.show()
-
-def remove_values_from_list(the_list, val):
-   return [i for i in range(0, len(the_list)) if the_list[i] != val]
 
 def correlations(G):
     (avg_in, avg_out, avg, total_avg_in, total_avg_out, total_avg) = avg_weights(G)
@@ -395,14 +277,6 @@ def get_exponent(G):
     fit = powerlaw.Fit(w)
     R, p = fit.distribution_compare('power_law', 'exponential', normalized_ratio=True)
     return fit.power_law.alpha
-
-def normalize_weights(G):
-	w = np.array([w for u,v,w in G.edges_iter(weight=True)])
-	max_weight = max(w)
-	min_weight = min(w)
-	for eidx in G.edges_iter_():
-		G.set_weight_(eidx, (G.weight_(eidx)-min_weight)/(max_weight-min_weight)+1)
-	return G
 
 def draw_ternary_plot(controls, rcontrols, filename):
 	figure, tax = ternary.figure(scale=1.0)
