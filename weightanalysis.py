@@ -17,15 +17,20 @@ def load_network(networkname):
 
 def random_barabasi():
     G = zen.generating.barabasi_albert(100, 10, directed=True)
+    return G
+    
+def assign_weights(G, mode):
     for eidx in G.edges_iter_():
         (src, tgt) = G.endpoints_(eidx)
-        # Increasing weights
-        G.set_weight_(eidx, random.randint(1,100)*(G.degree_(src)+G.degree_(tgt)))
-        # Decreasing weights
-        # G.set_weight_(eidx, random.randint(1,100)*(G.degree_(src)+G.degree_(tgt)))
-        # Random weights
-        # G.set_weight_(eidx, random.randint(1,100))
-    return G
+        if mode == "inc":
+            # Increasing weights
+            G.set_weight_(eidx, random.randint(1,100)*(G.degree_(src)+G.degree_(tgt)))
+        elif mode == "inv":
+            # Decreasing weights
+            G.set_weight_(eidx, random.randint(1,100)*(G.degree_(src)+G.degree_(tgt)))
+        else:
+            # Random weights
+            G.set_weight_(eidx, random.randint(1,100))
     
 def random_erdos():
     G = zen.generating.erdos_renyi(100, 0.02, directed=True)
@@ -276,6 +281,7 @@ def get_exponent(G):
     w = np.array([w for u,v,w in G.edges_iter(weight=True)])
     fit = powerlaw.Fit(w)
     R, p = fit.distribution_compare('power_law', 'exponential', normalized_ratio=True)
+    print "R = %f; p = %f" % (R, p)
     return fit.power_law.alpha
 
 def draw_ternary_plot(controls, rcontrols, filename):
