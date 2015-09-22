@@ -1,0 +1,4 @@
+# Weight Analysis
+Uses the [ZEN Python Library](http://zen.networkdynamics.org) to work on the graphs. The `reducer` method works on a graph from which it removes a defined number of edge at each step. These edges may be removed depending on their link weights (either increasing or decreasing) or randomly. Several statistics are returned. `avg_reducer` repeats the procedure a defined number of times to remove the randomness from the choice of edges that possess the same weight.
+
+We also give a few helpful functions to compute statistics on the graph, such as the mean weight from the incident edges of nodes of a certain degree. Helper functions are written to plot graphs illustrating the evolution of controls.
