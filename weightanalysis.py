@@ -11,6 +11,9 @@ import ggplot as gg
 import powerlaw
 import ternary
 
+def filename(string):
+	return string.split("/")[-1].split('.')[0]
+
 def load_network(networkname):
 	G = zen.io.edgelist.read(networkname, directed=True, weighted=True)
 	return G
@@ -18,7 +21,11 @@ def load_network(networkname):
 def random_barabasi():
     G = zen.generating.barabasi_albert(100, 10, directed=True)
     return G
-    
+
+def random_erdos():
+    G = zen.generating.erdos_renyi(100, 0.02, directed=True)
+    return G
+
 def assign_weights(G, mode):
     for eidx in G.edges_iter_():
         (src, tgt) = G.endpoints_(eidx)
@@ -31,21 +38,6 @@ def assign_weights(G, mode):
         else:
             # Random weights
             G.set_weight_(eidx, random.randint(1,100))
-    
-def random_erdos():
-    G = zen.generating.erdos_renyi(100, 0.02, directed=True)
-    for eidx in G.edges_iter_():
-        (src, tgt) = G.endpoints_(eidx)
-        # Increasing weights
-        # G.set_weight_(eidx, random.randint(1,100)*(G.degree_(src)+G.degree_(tgt)))
-        # Decreasing weights
-        G.set_weight_(eidx, random.randint(1,100)/(G.degree_(src)+G.degree_(tgt)))
-        # Random weights
-        # G.set_weight_(eidx, random.randint(1,100))
-    return G
-
-def filename(string):
-	return string.split("/")[-1].split('.')[0]
 
 def degree_distribution(G):
 	in_degrees = np.array([G.in_degree_(nidx) for nidx in G.nodes_iter_()])
