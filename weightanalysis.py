@@ -1,6 +1,7 @@
 import matplotlib
 matplotlib.use('tkAgg')
 import matplotlib.pyplot as plt
+from pylab import *
 import numpy as np
 import zen
 import random
@@ -10,6 +11,11 @@ import pandas as pd
 import ggplot as gg
 import powerlaw
 import ternary
+from math import *
+from scipy.stats import *
+
+def swap_cols(arr, frm, to):
+    arr[:,[frm, to]] = arr[:,[to, frm]]
 
 def filename(string):
 	return string.split("/")[-1].split('.')[0]
@@ -34,7 +40,7 @@ def assign_weights(G, mode):
             G.set_weight_(eidx, random.randint(1,100)*(G.degree_(src)+G.degree_(tgt)))
         elif mode == "inv":
             # Decreasing weights
-            G.set_weight_(eidx, random.randint(1,100)*(G.degree_(src)+G.degree_(tgt)))
+            G.set_weight_(eidx, random.randint(1,100)/(G.degree_(src)+G.degree_(tgt)))
         else:
             # Random weights
             G.set_weight_(eidx, random.randint(1,100))
@@ -257,6 +263,15 @@ def correlations(G):
     r = np.array(range(0, len(total_avg)))
     r = r[np.nonzero(total_avg)]
     return np.corrcoef(nz, r)[0,1]
+    
+    
+def spearman_correlations(G):
+    (avg_in, avg_out, avg, total_avg_in, total_avg_out, total_avg) = avg_weights(G)
+    (in_deg, out_deg, deg) = degree_distribution(G)
+    nz = total_avg[np.nonzero(total_avg)]
+    r = np.array(range(0, len(total_avg)))
+    r = r[np.nonzero(total_avg)]
+    return spearmanr(np.array([nz,r]), axis=1)[0]
 		
 def plot_link_weights(G, filename):
 	print "Filename = %s" % filename
@@ -266,7 +281,7 @@ def plot_link_weights(G, filename):
 	title = "Exponent: %f" % fit.power_law.alpha
 	print "(R, p) = (%f, %f)" % (R, p)
 	df = pd.DataFrame({ 'weight': pd.Series(w) })
-	p = gg.ggplot(gg.aes(x='weight'), data=df) + gg.geom_histogram(fill='blue', alpha=0.6) + gg.scale_y_log10() + gg.ggtitle(title)
+	p = gg.ggplot(gg.aes(x='weight'), data=df) + gg.geom_histogram(fill='blue', alpha=0.6) + gg.scale_x_log10() + gg.scale_y_log10() + gg.ggtitle(title)
 	gg.ggsave(filename="graphs/weight_distrib/"+filename+"-weight_distrib.png", plot=p)
 	
 def get_exponent(G):
@@ -277,27 +292,40 @@ def get_exponent(G):
     return fit.power_law.alpha
 
 def draw_ternary_plot(controls, rcontrols, filename):
-	figure, tax = ternary.figure(scale=1.0)
-	tax.boundary(color='black')
-	tax.plot(controls, linewidth=2.0, label="Weight cuts", color="blue")
-	tax.plot(rcontrols, linewidth=2.0, label="Random cuts", color="green")
-	tax.left_axis_label("No source control")
-	tax.right_axis_label("No internal dilation control")
-	tax.bottom_axis_label("No external dilation control")
-	tax.legend()
-	#tax.show()
-	figure.savefig('graphs/ternary/'+filename+'-ternary.png')
+    m = np.shape(controls)[0]
+    n = 20
+    ten_per = int(floor(m/5.0))
+    swap_cols(controls, 1, 2)
+    swap_cols(rcontrols, 1, 2)
+    first_ten_per = controls[range(0, ten_per),:]
+    rfirst_ten_per = rcontrols[range(0, ten_per),:]
+    rest = controls[range(ten_per, m),:]
+    rrest = rcontrols[range(ten_per, m),:]
+    figure, tax = ternary.figure(scale=1.0)
+    tax.boundary(color='black')
+    tax.plot(first_ten_per, linewidth=3, label="Weight cuts", color="#00d3e4")
+    tax.plot(rfirst_ten_per, linewidth=3, label="Random cuts", color="#75b765")
+    tax.plot(rest, linewidth=1, label="Weight cuts", color="#007e88")
+    tax.plot(rrest, linewidth=1, label="Random cuts", color="#466d3c")
+    tax.left_axis_label("No source control")
+    tax.right_axis_label("No external dilation control")
+    tax.bottom_axis_label("No internal dilation control")
+    tax.legend()
+    #tax.show()
+    figure.savefig('graphs/ternary/'+filename+'-ternary.png')
 
 def plot_min_number_controls(controls, rcontrols, filename):
-	fig = plt.figure()
-	plt.plot(range(0, len(controls)), controls, 'b-', label='Weight cuts', linewidth=2.0)
-	plt.plot(range(0, len(rcontrols)), rcontrols, 'g-', label='Random cuts', linewidth=2.0)
-	plt.legend(loc=2)
-	plt.title(filename)
-	plt.ylabel('Number of controls')
-	plt.xlabel('Slices')
+    fig = plt.figure()
+    plt.plot(np.array(range(0, len(controls)))/float(len(controls)-1)*100.0, controls/np.max(controls), 'b-', label='Weight cuts', linewidth=2.0)
+    plt.plot(np.array(range(0, len(rcontrols)))/float(len(controls)-1)*100.0, rcontrols/np.max(rcontrols), 'g--', label='Random cuts', linewidth=2.0)
+    plt.legend(loc=2)
+    plt.title(filename)
+    plt.axis([0, 100, 0, 1])
+    plt.ylabel('Fraction of controlled nodes')
+    plt.xlabel('Percentage of edge cuts')
+    plt.grid()
 #	plt.show()
-	fig.savefig('graphs/number_controls/'+filename+'-controls.png')
+    fig.savefig('graphs/number_controls/'+filename+'-controls.png')
 
 
 
