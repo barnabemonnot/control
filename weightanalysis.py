@@ -17,9 +17,6 @@ from plotly import tools
 import plotly.plotly as py
 import plotly.graph_objs as go
 
-def swap_cols(arr, frm, to):
-    arr[:,[frm, to]] = arr[:,[to, frm]]
-
 def filename(string):
 	return string.split("/")[-1].split('.')[0]
 
@@ -93,6 +90,25 @@ def assign_weights_in_out_rev(G, mode):
             G.set_weight_(eidx, float(random.randint(1,100))*G.out_degree_(src)/G.in_degree_(tgt))
         elif mode == "inc":
             G.set_weight_(eidx, float(random.randint(1,100))/G.out_degree_(src)*G.in_degree_(tgt))
+
+def assign_weights_target(G, mode, size):
+    for eidx in G.edges_iter_():
+        (src, tgt) = G.endpoints_(eidx)
+        if mode == "inc":
+            # Increasing weights
+            G.set_weight_(eidx, float(random.randint(1,100))*(G.degree_(src)+G.degree_(tgt)))
+        elif mode == "inv":
+            # Decreasing weights
+            G.set_weight_(eidx, float(random.randint(1,100))/(G.degree_(src)+G.degree_(tgt)))
+        else:
+            # Random weights
+            G.set_weight_(eidx, float(random.randint(1,100)))
+    max_weight = np.max(get_weights(G))
+    min_weight = np.min(get_weights(G))
+    print "Edges targeted = %d" % int(size*G.size())
+    for i in range(0, int(size*G.size())):
+        rem = random.randint(0,G.size()-1)
+        G.set_weight_(rem, float(random.uniform(min_weight, max_weight)))
 
 def degree_distribution(G):
 	in_degrees = np.array([G.in_degree_(nidx) for nidx in G.nodes_iter_()])
@@ -274,16 +290,6 @@ def reducer(H, step, rand=False, asc=True, log=False):
     # controlled_nodes gives the indices of controlled nodes at each slice
     return controls, diff_controls, weight_cuts, node_removed, controlled_nodes
 
-def plot_deg_distrib(G):
-	(in_deg, out_deg, deg) = degree_distribution(G)
-	in_deg_series = pd.Series(in_deg)
-	out_deg_series = pd.Series(out_deg)
-	in_out = { 'in_deg': in_deg_series, 'out_deg': out_deg_series }
-	df = pd.DataFrame(in_out)
-	df = pd.melt(df)
-	p = gg.ggplot(gg.aes(x='value', color='variable', fill='variable'), data=df2) + gg.geom_histogram(alpha=0.6, binwidth=1)
-	print p
-
 def spearman_correlation(G):
     (avg_in, deg_in, avg_out, deg_out, avg, deg) = avg_weights_degree(G)
     return (spearmanr(np.array([avg_in,deg_in]), axis=1)[0], spearmanr(np.array([avg_out,deg_out]), axis=1)[0], spearmanr(np.array([avg,deg]), axis=1)[0])
@@ -298,129 +304,9 @@ def get_exponent(G):
     R, p = fit.distribution_compare('power_law', 'exponential', normalized_ratio=True)
     #print "R = %f; p = %f" % (R, p)
     return fit.power_law.alpha
+    
 
-def plot_hist_ly(G, filename):
-    w = np.array([w for u,v,w in G.edges_iter(weight=True)])
-    trace = go.Histogram(
-        x=w,
-        histnorm=1
-    )
-    data = [trace]
-    layout = go.Layout(
-        title='<b>Weight distribution for ' + filename + '</b>',
-        font=dict(size=18),
-        xaxis=dict(
-            title='Weight',
-            type='log'
-        ),
-        yaxis=dict(
-            title='Frequency',
-            type='log',
-            autorange=True
-        ),
-        bargap=0.25,
-        bargroupgap=0.3
-    )
-    fig = go.Figure(data=data, layout=layout)
-    plot_url = py.plot(fig, filename='basic-line')
-    print plot_url
-	
-def plot_link_weights(G, filename):
-    print "Filename = %s" % filename
-    w = np.array([w for u,v,w in G.edges_iter(weight=True)])
-    print w
-    fit = Fit(w)
-    R, p = fit.distribution_compare('power_law', 'exponential', normalized_ratio=True)
-    title = "Exponent: %f" % fit.power_law.alpha
-    print "(R, p) = (%f, %f)" % (R, p)
-    df = pd.DataFrame({ 'weight': pd.Series(np.log10(w)) })
-    p = gg.ggplot(gg.aes(x='weight'), data=df) + gg.geom_histogram(fill='blue', alpha=0.6) + gg.scale_y_log10() + gg.ggtitle(title)
-    gg.ggsave(filename="graphs/weight_distrib/"+filename+"-weight_distrib.png", plot=p)
 
-def scatter(x, y, filename=""):
-    df = pd.DataFrame({ 'x': pd.Series(x), 'y': pd.Series(y) })
-    p = gg.ggplot(gg.aes(x='x', y='y'), data=df) + gg.geom_point()
-    if filename == "":
-        print p
-    else:
-        gg.ggsave(filename="graphs/scatter/"+filename+".png", plot=p)
-    
-def scatter_weights_degree(G, filename=""):
-    (avg, deg) = avg_weights_degree(G)
-    scatter(avg, deg, filename)
-    
-def plot_min_ly(controls, rcontrols, weights, filename):
-    trace1 = go.Scatter(
-        x = np.array(range(0, len(controls)))/float(len(controls)-1)*100.0,
-        y = controls/np.max(controls),
-        name = "Weight cuts",
-        line = dict(color='#45A9DE',width=4)
-    )
-    
-    trace2 = go.Scatter(
-        x = np.array(range(0, len(rcontrols)))/float(len(rcontrols)-1)*100.0,
-        y = rcontrols/np.max(rcontrols),
-        name = "Random cuts",
-        line = dict(dash='dashdot',color='#BFCE80',width=4)
-    )
-    
-    trace3 = go.Scatter(
-        x = np.array(range(0, len(rcontrols)))/float(len(rcontrols)-1)*100.0,
-        y = weights,
-        line = dict(dash='dot', color='#45A9DE',width=4),
-        showlegend=False
-    )
-    
-    fig = tools.make_subplots(rows=3, cols=1, specs=[[{'rowspan': 2}],[None],[{}]])
-    fig['layout'].update(title='Minimum number of controls for ' + filename, font=dict(size=18), height=600, width=800)
-    fig['layout']['yaxis1'].update(title='Fraction of driver nodes', range=[0,1], titlefont=dict(size=16))
-    fig['layout']['yaxis2'].update(title='Sliced edge weight', titlefont=dict(size=16))
-    fig['layout']['xaxis2'].update(title='Percentage of slices', titlefont=dict(size=16))
-    
-    fig.append_trace(trace1,1,1)
-    fig.append_trace(trace2,1,1)
-    fig.append_trace(trace3,3,1)
-
-    plot_url = py.plot(fig, filename='basic-line')
-    print plot_url
-
-def plot_min_number_controls(controls, rcontrols, filename):
-    fig = plt.figure()
-    plt.plot(np.array(range(0, len(controls)))/float(len(controls)-1)*100.0, controls/np.max(controls), 'b-', label='Weight cuts', linewidth=2.0)
-    plt.plot(np.array(range(0, len(rcontrols)))/float(len(controls)-1)*100.0, rcontrols/np.max(rcontrols), 'g--', label='Random cuts', linewidth=2.0)
-    plt.legend(loc=2)
-    plt.title(filename)
-    plt.axis([0, 100, 0, 1])
-    plt.ylabel('Fraction of controlled nodes')
-    plt.xlabel('Percentage of edge cuts')
-    plt.grid()
-    plt.show()
-    fig.savefig('graphs/number_controls/'+filename+'-controls.png')
-
-def draw_ternary_plot(controls, rcontrols, filename):
-    m = np.shape(controls)[0]
-    n = 20
-    ten_per = int(floor(m/5.0))
-    swap_cols(controls, 2, 0)
-    swap_cols(rcontrols, 2, 0)
-    swap_cols(controls, 0, 1) 
-    swap_cols(rcontrols, 0, 1)
-    first_ten_per = controls[range(0, ten_per),:]
-    rfirst_ten_per = rcontrols[range(0, ten_per),:]
-    rest = controls[range(ten_per, m),:]
-    rrest = rcontrols[range(ten_per, m),:]
-    figure, tax = ternary.figure(scale=1.0)
-    tax.boundary(color='black')
-    tax.plot(first_ten_per, linewidth=3, label="Weight cuts", color="#00d3e4")
-    tax.plot(rfirst_ten_per, linewidth=3, label="Random cuts", color="#75b765")
-    tax.plot(rest, linewidth=1, label="Weight cuts", color="#007e88")
-    tax.plot(rrest, linewidth=1, label="Random cuts", color="#466d3c")
-    tax.left_axis_label("No external dilation control")
-    tax.right_axis_label("No source control")
-    tax.bottom_axis_label("No internal dilation control")
-    tax.legend()
-    #tax.show()
-    figure.savefig('graphs/ternary/celegans/'+filename+'-ternary.png')
 
 
 
