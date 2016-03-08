@@ -23,7 +23,7 @@ def scatter(x, y, filename=""):
         print p
     else:
         gg.ggsave(filename="graphs/scatter/"+filename+".png", plot=p)
-    
+
 def scatter_weights_degree(G, filename=""):
     (avg, deg) = avg_weights_degree(G)
     scatter(avg, deg, filename)
@@ -52,15 +52,15 @@ def plot_hist_ly(G, filename):
         font=dict(size=18),
         xaxis=dict(
             title='Weight',
-            titlefont=dict(size=24),
-            tickfont=dict(size=22)
+            titlefont=dict(size=28),
+            tickfont=dict(size=24)
         ),
         yaxis=dict(
             title='Frequency',
             type='log',
             autorange=True,
-            titlefont=dict(size=24),
-            tickfont=dict(size=22)
+            titlefont=dict(size=28),
+            tickfont=dict(size=24)
         ),
         bargap=0.01,
         bargroupgap=0.01,
@@ -88,7 +88,7 @@ def draw_ternary_plot(controls, rcontrols, filename):
     ten_per = int(floor(m/5.0))
     swap_cols(controls, 2, 0)
     swap_cols(rcontrols, 2, 0)
-    swap_cols(controls, 0, 1) 
+    swap_cols(controls, 0, 1)
     swap_cols(rcontrols, 0, 1)
     first_ten_per = controls[range(0, ten_per),:]
     rfirst_ten_per = rcontrols[range(0, ten_per),:]
@@ -115,7 +115,7 @@ def plot_min_ly(controls, rcontrols, weights, filename):
         line = dict(color='#45A9DE',width=4),
         showlegend=False
     )
-    
+
     trace2 = go.Scatter(
         x = np.array(range(0, len(rcontrols)))/float(len(rcontrols)-1)*100.0,
         y = rcontrols/np.max(rcontrols),
@@ -123,7 +123,7 @@ def plot_min_ly(controls, rcontrols, weights, filename):
         line = dict(dash='dashdot',color='#BFCE80',width=4),
         showlegend=False
     )
-    
+
     trace3 = go.Scatter(
         x = np.array(range(0, len(weights)))/float(len(weights)-1)*100.0,
         y = weights,
@@ -131,19 +131,22 @@ def plot_min_ly(controls, rcontrols, weights, filename):
         name="Weights",
         showlegend=False
     )
-    
+
     fig = tools.make_subplots(rows=3, cols=1, specs=[[{'rowspan': 2}],[None],[{}]])
     fig['layout'].update(height=600, width=800)
     fig['layout']['yaxis1'].update(title='$n_c$', range=[0,1], titlefont=dict(size=28), tickfont=dict(size=24))
     fig['layout']['yaxis2'].update(title='$w$', titlefont=dict(size=28), tickfont=dict(size=24))
     fig['layout']['xaxis2'].update(title='Percentage of slices', titlefont=dict(size=28), tickfont=dict(size=24))
-    
+    fig['layout']['xaxis1'].update(tickfont=dict(size=24))
+    fig['layout']['font'].update(size=28)
+
     fig.append_trace(trace1,1,1)
     fig.append_trace(trace2,1,1)
     fig.append_trace(trace3,3,1)
 
-    plot_url = py.plot(fig, filename='basic-line')
-    print plot_url
+    py.image.save_as(fig, 'paper2/'+filename+'.png')
+    # plot_url = py.plot(fig, filename='basic-line')
+#     print plot_url
 
 def plot_graph_results(inc, inv):
     network = list(reversed(['intl', 'us', 'celegans', 'Chesapeake', 'ChesLower', 'ChesMiddle', 'ChesUpper', 'CrystalC', 'CrystalD', 'Everglades', 'Florida', 'Maspalomas', 'Michigan', 'Mondego', 'Narragan', 'Rhode', 'StMarks', 'one_mode_char', 'one_mode_message', 'days1-12', 'days1-4', 'days5-8', 'days9-12']))
@@ -239,7 +242,7 @@ def scatter_ly(r_er, er, r_ba, ba, r_ce, ce, r_us, us):
             size=16,
         )
     )
-    
+
     trace1 = go.Scatter(
         x = r_er,
         y = er,
@@ -255,7 +258,7 @@ def scatter_ly(r_er, er, r_ba, ba, r_ce, ce, r_us, us):
             size=16,
         ),
     )
-    
+
     trace2 = go.Scatter(
         x = r_ba,
         y = ba,
@@ -271,7 +274,7 @@ def scatter_ly(r_er, er, r_ba, ba, r_ce, ce, r_us, us):
             size=16,
         ),
     )
-    
+
     trace3 = go.Scatter(
         x = r_ce,
         y = ce,
@@ -287,7 +290,7 @@ def scatter_ly(r_er, er, r_ba, ba, r_ce, ce, r_us, us):
             size=16,
         )
     )
-    
+
     data = [trace1, trace2, trace3, trace0]
     layout = go.Layout(
         font=dict(size=16),
@@ -328,7 +331,7 @@ def scatter_ly(r_er, er, r_ba, ba, r_ce, ce, r_us, us):
         plot_bgcolor='rgb(255, 255, 255)',
         hovermode='closest',
     )
-    
+
     fig = go.Figure(data=data, layout=layout)
     plot_url = py.plot(fig, filename='basic-line')
     print plot_url

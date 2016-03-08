@@ -180,39 +180,33 @@ def control_profile_(G, controls, matching):
 
 	return (float(num_source)/len(controls), float(num_external_dilations)/len(controls), float(num_internal_dilations)/len(controls)), types
 
-def find_one_min_weight(G, w):
-	min_weights = []
-	abs_min_weight = min(w)
+def find_edges_with_weight(G, w, asc=True):
+	weights = []
+	abs_weight = 0
+	if asc:
+		abs_weight = min(w)
+	else:
+		abs_weight = max(w)
 	for eidx, wei in G.edges_iter_(weight=True):
-		if wei >= abs_min_weight-10**(-6) and wei <= abs_min_weight+10**(-6):
-			min_weights.append([eidx, wei])
-	chosen_one = min_weights[random.randint(0, len(min_weights)-1)]
-	return chosen_one
-
-def find_one_max_weight(G, w):
-	max_weights = []
-	abs_max_weight = max(w)
-	for eidx, wei in G.edges_iter_(weight=True):
-		if wei >= abs_max_weight-10**(-6) and wei <= abs_max_weight+10**(-6):
-			max_weights.append([eidx, wei])
-	chosen_one = max_weights[random.randint(0, len(max_weights)-1)]
-	return chosen_one
+		if wei >= abs_weight-10**(-6) and wei <= abs_weight+10**(-6):
+			weights.append([eidx, wei])
+	return weights
 
 def avg_reducer(H, step, runs=100, rand=False, asc=True, filename="", log=False):
     # Runs reducer <runs> times and averages the results
     # to erase randomness in the choice of links
-    iter_number = H.size()/step + 1
-    avg_controls = np.zeros((iter_number, 4))
-    total_weight_cuts = np.zeros(iter_number-1)
+    avg_controls = []
     for i in range(0, runs):
         if log:
             print 'Run %d' % i
-        [controls, diff_controls, weight_cuts, node_removed, controlled_nodes] = reducer(H, step, rand=rand, asc=asc, log=log)
-        avg_controls = avg_controls+controls/runs
-        total_weight_cuts = total_weight_cuts+weight_cuts/runs
+        controls = reducer(H, step, rand=rand, asc=asc, log=log)
+		if len(avg_controls) == 0:
+        	avg_controls = controls/runs
+		else:
+			avg_controls = avg_controls + controls/runs
         if filename != "":
             np.savetxt("controls/"+filename+".txt", avg_controls)
-    return (avg_controls, total_weight_cuts)
+    return avg_controls
 
 def reducer(H, step, rand=False, asc=True, log=False):
     # Removes edges <step> at a time and keeps track of the evolution of control profile
@@ -223,13 +217,8 @@ def reducer(H, step, rand=False, asc=True, log=False):
     G = H.copy()
     w = [w for u,v,w in G.edges_iter(weight=True)]
     iter_number = G.size()/step + 1
-    controls = np.zeros((iter_number, 4))	
-    diff_controls = np.zeros(iter_number-1)
-    weight_cuts = np.zeros(iter_number-1)
-    controlled_nodes = np.ones((len(G), iter_number))
-    remove_disconnected_nodes = False # remove disconnected nodes
-    node_removed = np.zeros(iter_number-1) 
-    initial_size = len(G)
+    controls = np.zeros((iter_number, 4))
+	current_weights = []
 
     for i in range(0, iter_number):
         if i % 100 == 0 and log:
@@ -238,12 +227,13 @@ def reducer(H, step, rand=False, asc=True, log=False):
             start_time = time.time()
             for j in range(0, step): # slice 'step' edges from the graph
                 if G.size() > 0:
-                    chosen_one = ()
+                    chosen_one = []
                     if not rand:
-                        if asc:
-                            chosen_one = find_one_min_weight(G,w)
-                        else:
-                            chosen_one = find_one_max_weight(G,w)
+						if len(current_weights) == 0:
+                        	current_weights = find_min_weight(G,w,asc)
+						idx_min = random.randint(0, len(current_weights)-1)
+						chosen_one = current_weights[idx_min]
+						del current_weights[idx_min]
                     else:
                         rem = random.randint(0,G.size()-1)
                         eidx = G.edges_()[rem]
@@ -255,40 +245,17 @@ def reducer(H, step, rand=False, asc=True, log=False):
                     index = np.where(G.edges_()==eidx)[0][0]
                     G.rm_edge_(eidx)
                     w.pop(index)
-                    weight_cuts[i-1] = chosen_one[1]
-                    if remove_disconnected_nodes:
-                        if G.degree_(src) == 0:
-                            G.rm_node_(src)
-                            diff_node_removed[i-1] += 1
-                        if G.degree_(tgt) == 0:
-                            G.rm_node_(tgt)
-                            diff_node_removed[i-1] += 1
-            node_removed[i-1] = initial_size-len(G)
+
         controlled_nodes_slice, matching = get_controlled_nodes(G)
         (source, external, internal), types = control_profile_(G, controlled_nodes_slice, matching)
-        if not remove_disconnected_nodes:
-            controlled_nodes_binary = np.ones((len(G), 1))
-            for nidx in controlled_nodes_slice:
-                if types[nidx] == TYPE_SOURCE:
-                    controlled_nodes_binary[nidx] = 0.9
-                elif types[nidx] == TYPE_EXTERNAL_DILATION:
-                    controlled_nodes_binary[nidx] = 0.3
-                else:
-                    controlled_nodes_binary[nidx] = 0
-        for j in range(0, len(controlled_nodes_binary)):
-            controlled_nodes[j][i] = controlled_nodes_binary[j]
         m = len(controlled_nodes_slice)
         controls[i] = (m, source, external, internal)
-        if i > 0:
-            diff_controls[i-1] = m-controls[i-1][0]
-    if log:
+
+    if not log:
         print 'Ran in %f seconds' % (time.time()-total_running_time)
     # controls holds the control profiles at each slice
-    # diff_controls holds the added number of controls between each slice
-    # weight_cuts holds the max weight cut during each slice
-    # node_removed has number of nodes removed until slice
-    # controlled_nodes gives the indices of controlled nodes at each slice
-    return controls, diff_controls, weight_cuts, node_removed, controlled_nodes
+
+    return controls
 
 def spearman_correlation(G):
     (avg_in, deg_in, avg_out, deg_out, avg, deg) = avg_weights_degree(G)
@@ -302,11 +269,4 @@ def get_exponent(G):
     w = np.array([w for u,v,w in G.edges_iter(weight=True)])
     fit = Fit(w)
     R, p = fit.distribution_compare('power_law', 'exponential', normalized_ratio=True)
-    #print "R = %f; p = %f" % (R, p)
     return fit.power_law.alpha
-    
-
-
-
-
-
