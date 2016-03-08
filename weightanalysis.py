@@ -1,21 +1,10 @@
-import matplotlib
-matplotlib.use('tkAgg')
-import matplotlib.pyplot as plt
-from pylab import *
 import numpy as np
 import zen
 import random
-import os
 import time
-import pandas as pd
-import ggplot as gg
 from powerlaw import *
-import ternary
 from math import *
 from scipy.stats import *
-from plotly import tools
-import plotly.plotly as py
-import plotly.graph_objs as go
 
 def filename(string):
 	return string.split("/")[-1].split('.')[0]
