@@ -177,74 +177,71 @@ def find_edges_with_weight(G, w, asc=True):
 	else:
 		abs_weight = max(w)
 	for eidx, wei in G.edges_iter_(weight=True):
-		if wei >= abs_weight-10**(-6) and wei <= abs_weight+10**(-6):
+		if wei >= abs_weight-10**(-8) and wei <= abs_weight+10**(-8):
 			weights.append([eidx, wei])
 	return weights
 
-def avg_reducer(H, step, runs=100, rand=False, asc=True, filename="", log=False):
-    # Runs reducer <runs> times and averages the results
-    # to erase randomness in the choice of links
-    avg_controls = []
-    for i in range(0, runs):
-        if log:
-            print 'Run %d' % i
-        controls = reducer(H, step, rand=rand, asc=asc, log=log)
-		if len(avg_controls) == 0:
-        	avg_controls = controls/runs
+def avg_reducer(H, step=1, runs=20, rand=False, asc=True, filename="", log=False):
+	avg_controls = None
+	for i in range(0, runs):
+		if log:
+			print 'Run %d' % i
+		controls = reducer(H, step=step, rand=rand, asc=asc, log=log)
+		if avg_controls == None:
+			avg_controls = controls/runs
 		else:
 			avg_controls = avg_controls + controls/runs
-        if filename != "":
-            np.savetxt("controls/"+filename+".txt", avg_controls)
-    return avg_controls
+	if filename != "":
+		np.savetxt("controls/"+filename+".txt", avg_controls)
+	return avg_controls
 
-def reducer(H, step, rand=False, asc=True, log=False):
+def reducer(H, step=1, rand=False, asc=True, log=False):
     # Removes edges <step> at a time and keeps track of the evolution of control profile
     # rand=False -> weight cuts
     # rand=True -> random cuts
     # asc=True -> Lighter edges are cut first
-    total_running_time = time.time()
-    G = H.copy()
-    w = [w for u,v,w in G.edges_iter(weight=True)]
-    iter_number = G.size()/step + 1
-    controls = np.zeros((iter_number, 4))
+	total_running_time = time.time()
+	G = H.copy()
+	w = [w for u,v,w in G.edges_iter(weight=True)]
+	iter_number = G.size()/step + 1
+	controls = np.zeros((iter_number, 4))
 	current_weights = []
 
-    for i in range(0, iter_number):
-        if i % 100 == 0 and log:
-            print "Slice %d out of %d" % (i, iter_number)
-        if i > 0: # First slice is the whole graph
-            start_time = time.time()
-            for j in range(0, step): # slice 'step' edges from the graph
-                if G.size() > 0:
-                    chosen_one = []
-                    if not rand:
+	for i in range(0, iter_number):
+		if log and i % 100 == 0:
+			print "Slice %d out of %d" % (i, iter_number)
+		if i > 0: # First slice is the whole graph
+			start_time = time.time()
+			for j in range(0, step): # slice 'step' edges from the graph
+				if G.size() > 0:
+					chosen_one = []
+					if not rand:
 						if len(current_weights) == 0:
-                        	current_weights = find_min_weight(G,w,asc)
+							current_weights = find_edges_with_weight(G,w,asc=asc)
 						idx_min = random.randint(0, len(current_weights)-1)
 						chosen_one = current_weights[idx_min]
 						del current_weights[idx_min]
-                    else:
-                        rem = random.randint(0,G.size()-1)
-                        eidx = G.edges_()[rem]
-                        wei = G.weight_(eidx)
-                        chosen_one = [eidx, wei]
-                    eidx = chosen_one[0]
-                    src = G.src_(eidx)
-                    tgt = G.tgt_(eidx)
-                    index = np.where(G.edges_()==eidx)[0][0]
-                    G.rm_edge_(eidx)
-                    w.pop(index)
+					else:
+						rem = random.randint(0,G.size()-1)
+						eidx = G.edges_()[rem]
+						wei = G.weight_(eidx)
+						chosen_one = [eidx, wei]
+					eidx = chosen_one[0]
+					src = G.src_(eidx)
+					tgt = G.tgt_(eidx)
+					index = np.where(G.edges_()==eidx)[0][0]
+					G.rm_edge_(eidx)
+					w.pop(index)
 
-        controlled_nodes_slice, matching = get_controlled_nodes(G)
-        (source, external, internal), types = control_profile_(G, controlled_nodes_slice, matching)
-        m = len(controlled_nodes_slice)
-        controls[i] = (m, source, external, internal)
+		controlled_nodes_slice, matching = get_controlled_nodes(G)
+		(source, external, internal), types = control_profile_(G, controlled_nodes_slice, matching)
+		m = len(controlled_nodes_slice)
+		controls[i] = (m, source, external, internal)
 
-    if not log:
-        print 'Ran in %f seconds' % (time.time()-total_running_time)
-    # controls holds the control profiles at each slice
+	if log:
+		print 'Ran in %f seconds' % (time.time()-total_running_time)
 
-    return controls
+	return controls
 
 def spearman_correlation(G):
     (avg_in, deg_in, avg_out, deg_out, avg, deg) = avg_weights_degree(G)

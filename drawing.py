@@ -107,7 +107,7 @@ def draw_ternary_plot(controls, rcontrols, filename):
     #tax.show()
     figure.savefig('graphs/ternary/'+filename+'-ternary.png')
 
-def plot_min_ly(controls, rcontrols, weights, filename):
+def plot_min_ly(controls, rcontrols, weights=[], filename=""):
     trace1 = go.Scatter(
         x = np.array(range(0, len(controls)))/float(len(controls)-1)*100.0,
         y = controls/np.max(controls),
@@ -123,7 +123,6 @@ def plot_min_ly(controls, rcontrols, weights, filename):
         line = dict(dash='dashdot',color='#BFCE80',width=4),
         showlegend=False
     )
-
     trace3 = go.Scatter(
         x = np.array(range(0, len(weights)))/float(len(weights)-1)*100.0,
         y = weights,
@@ -143,10 +142,11 @@ def plot_min_ly(controls, rcontrols, weights, filename):
     fig.append_trace(trace1,1,1)
     fig.append_trace(trace2,1,1)
     fig.append_trace(trace3,3,1)
+    if filename == "":
+        plot_url = py.plot(fig, filename='basic-line')
+    else:
+        py.image.save_as(fig, 'paper2/'+filename+'.png')
 
-    py.image.save_as(fig, 'paper2/'+filename+'.png')
-    # plot_url = py.plot(fig, filename='basic-line')
-#     print plot_url
 
 def plot_graph_results(inc, inv):
     network = list(reversed(['intl', 'us', 'celegans', 'Chesapeake', 'ChesLower', 'ChesMiddle', 'ChesUpper', 'CrystalC', 'CrystalD', 'Everglades', 'Florida', 'Maspalomas', 'Michigan', 'Mondego', 'Narragan', 'Rhode', 'StMarks', 'one_mode_char', 'one_mode_message', 'days1-12', 'days1-4', 'days5-8', 'days9-12']))
